@@ -1,0 +1,1 @@
+This repository runs an algorithm that uses AAT when entering and/or exiting trades in the Forex market.
