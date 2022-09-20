@@ -1,0 +1,1 @@
+RNN_LOOKBACK = 150

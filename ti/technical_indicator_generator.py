@@ -18,11 +18,71 @@ class TechnicalIndicatorGenerator(object):
         df['vo'] = TechnicalIndicatorGenerator.vo(df['Volume'])
         df['willy'], df['willy_ema'] = TechnicalIndicatorGenerator.williams_r(df['Mid_High'], df['Mid_Low'],
                                                                               df['Mid_Close'])
+        df['squeeze_on'] = TechnicalIndicatorGenerator.squeeze(df)
+
+        df.dropna(inplace=True)
+        df.reset_index(drop=True, inplace=True)
+
+        tups = [TechnicalIndicatorGenerator.add_fractal(df, i) for i in range(df.shape[0])]
+        key_levels, is_supports = [tup[0] for tup in tups], [tup[1] for tup in tups]
+        df['key_level'], df['is_support'] = key_levels, is_supports
+        df = df.fillna(method='ffill')
 
         df.dropna(inplace=True)
         df.reset_index(drop=True, inplace=True)
 
         return df
+
+    @staticmethod
+    def add_fractal(df, i, look_back=3):
+        if look_back <= i < df.shape[0] - look_back:
+            lows = []
+            highs = []
+
+            for j in range(1, look_back + 1):
+                prev_mid_low, prev_mid_high = df.loc[df.index[i - j], ['Mid_Low', 'Mid_High']]
+                future_mid_low, future_mid_high = df.loc[df.index[i + j], ['Mid_Low', 'Mid_High']]
+
+                lows.append(float(prev_mid_low))
+                lows.append(float(future_mid_low))
+                highs.append(float(prev_mid_high))
+                highs.append(float(future_mid_high))
+
+            mid_low, mid_high = df.loc[df.index[i], ['Mid_Low', 'Mid_High']]
+
+            if float(mid_low) < min(lows):
+                return float(mid_low), 1.0
+
+            elif float(mid_high) > max(highs):
+                return float(mid_high), 0.0
+
+            else:
+                return np.nan, np.nan
+
+        else:
+            return np.nan, np.nan
+
+    @staticmethod
+    def squeeze(barsdata, length=20, length_kc=20, mult=1.5):
+        # Bollinger bands
+        m_avg = barsdata['Mid_Close'].rolling(window=length).mean()
+        m_std = barsdata['Mid_Close'].rolling(window=length).std(ddof=0)
+        upper_bb = m_avg + mult * m_std
+        lower_bb = m_avg - mult * m_std
+
+        # Keltner channel
+        tr0 = abs(barsdata['Mid_High'] - barsdata['Mid_Low'])
+        tr1 = abs(barsdata['Mid_High'] - barsdata['Mid_Close'].shift())
+        tr2 = abs(barsdata['Mid_Low'] - barsdata['Mid_Close'].shift())
+        tr = pd.concat([tr0, tr1, tr2], axis=1).max(axis=1)
+        range_ma = tr.rolling(window=length_kc).mean()
+        upper_kc = m_avg + range_ma * mult
+        lower_kc = m_avg - range_ma * mult
+
+        # Squeeze
+        squeeze_on = (lower_bb > lower_kc) & (upper_bb < upper_kc)
+
+        return squeeze_on
 
     @staticmethod
     def psar(barsdata, iaf=0.02, maxaf=0.2):

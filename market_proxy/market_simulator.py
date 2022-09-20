@@ -1,9 +1,7 @@
 from aat.aat_market_trainer import AatMarketTrainer
-from aat.aat_market_tester import AatMarketTester
-from datetime import datetime
 from pandas import DataFrame
-from market_proxy.market_calculations import MarketCalculations
 from market_proxy.trades import TradeType
+from nn.learner import Learner
 import numpy as np
 from strategy.strategy_class import Strategy
 from strategy.strategy_results import StrategyResults
@@ -12,33 +10,27 @@ from typing import Optional
 
 class MarketSimulator(object):
     @staticmethod
-    def run_simulation(strategy: Strategy, market_data: DataFrame, aat_trainer: Optional[AatMarketTrainer] = None,
-                       aat_tester: Optional[AatMarketTester] = None) -> StrategyResults:
-        if aat_trainer is not None and aat_tester is not None:
-            raise Exception('Cannot both train and test AAT at the same time; please train before testing')
-
-        if aat_trainer is not None:
-            cutoff_idx = int(len(market_data) * aat_trainer.training_data_percentage)
-            market_data = market_data.iloc[0:cutoff_idx, :]
-
-        elif aat_tester is not None:
-            cutoff_idx = int(len(market_data) * (1 - aat_tester.testing_data_percentage))
-            market_data = market_data.iloc[cutoff_idx:, :]
+    def run_simulation(strategy: Strategy, market_data: DataFrame, learner: Optional[Learner] = None,
+                       aat_trainer: Optional[AatMarketTrainer] = None) -> StrategyResults:
+        print(f'Running simulation for strategy with description: {strategy.description}')
 
         reward, n_wins, n_losses, win_streak, loss_streak, curr_win_streak, curr_loss_streak, n_buys, n_sells, \
             day_fees = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  # Numerical results we keep track of
-        pips_risked, trade, n_candles = [], None, 0
+        pips_risked, trade = [], None
 
         for idx in range(strategy.starting_idx, len(market_data)):
-            n_candles += 1
-
             # If there is no open trade, check to see if we should place one
             if trade is None:
                 trade = strategy.place_trade(idx, market_data)
+                trade_type = trade.trade_type if trade is not None else TradeType.NONE
 
+                # Train AAT
+                if aat_trainer is not None:
+                    aat_trainer.record_tuple(idx, market_data, trade_type)
+
+                # Update final result parameters
                 if trade is not None:
                     pips_risked.append(trade.pips_risked)
-                    n_candles = 0
 
                     if trade.trade_type == TradeType.BUY:
                         n_buys += 1
@@ -54,32 +46,28 @@ class MarketSimulator(object):
             # the trade (set it to None); and continue to the next iteration in the simulation loop (continue to the
             # next candle)
             if trade is not None:
-                if aat_trainer is not None:
-                    aat_trainer.record_tuple(idx, n_candles, market_data)
+                stop_idx = min(idx + 1, len(market_data)) if learner is None else len(market_data)
 
-                curr_bid_open, curr_bid_high, curr_bid_low, curr_ask_open, curr_ask_high, curr_ask_low, curr_mid_open, \
-                    curr_date = market_data.loc[market_data.index[idx], ['Bid_Open', 'Bid_High', 'Bid_Low', 'Ask_Open',
-                                                                         'Ask_High', 'Ask_Low', 'Mid_Open', 'Date']]
+                for j in range(idx, stop_idx):
+                    curr_bid_open, curr_bid_high, curr_bid_low, curr_ask_open, curr_ask_high, curr_ask_low, \
+                        curr_mid_open, curr_date = market_data.loc[market_data.index[j], ['Bid_Open', 'Bid_High',
+                                                                                          'Bid_Low', 'Ask_Open',
+                                                                                          'Ask_High', 'Ask_Low',
+                                                                                          'Mid_Open', 'Date']]
 
-                # If we are testing AAT, determine if we should exit the trade early
-                if aat_tester is not None:
-                    trade_pred = aat_tester.make_prediction(idx, n_candles, market_data)
+                    # Determine if trade should close out; if so, calculate the profit, day fees, etc.
+                    trade.calculate_trade(curr_bid_low, curr_bid_high, curr_ask_low, curr_ask_high, curr_date)
 
-                    trade_amount = curr_bid_open - trade.open_price if trade.trade_type == TradeType.BUY else \
-                        trade.open_price - curr_ask_open
-                    trade_amount *= trade.n_units
-                    trade.end_date = datetime.strptime(curr_date, '%Y-%m-%d %H:%M:%S')
-                    curr_day_fees = MarketCalculations.calculate_day_fees(trade)
-                    trade.end_date = None
+                    # Trade closed out
+                    if trade.end_date is not None:
+                        reward += trade.reward
+                        day_fees += trade.day_fees
+                        net_profit = trade.net_profit
 
-                    if trade_amount + curr_day_fees > trade_pred:
-                        reward += trade_amount
-                        day_fees += curr_day_fees
-
-                        n_wins += 1 if trade_amount > 0 else 0
-                        n_losses += 1 if trade_amount < 0 else 0
-                        curr_win_streak = 0 if trade_amount < 0 else curr_win_streak + 1
-                        curr_loss_streak = 0 if trade_amount > 0 else curr_loss_streak + 1
+                        n_wins += 1 if net_profit > 0 else 0
+                        n_losses += 1 if net_profit < 0 else 0
+                        curr_win_streak = 0 if net_profit < 0 else curr_win_streak + 1
+                        curr_loss_streak = 0 if net_profit > 0 else curr_loss_streak + 1
 
                         if curr_win_streak > win_streak:
                             win_streak = curr_win_streak
@@ -87,109 +75,16 @@ class MarketSimulator(object):
                         if curr_loss_streak > loss_streak:
                             loss_streak = curr_loss_streak
 
+                        if learner is not None:
+                            learner.trade_finished(net_profit, trade.start_date, trade.trade_type)
+
                         trade = None
 
-                        continue
+                        break
 
-                # Condition 1 - trade is a buy and the stop loss is hit
-                if trade.trade_type == TradeType.BUY and curr_bid_low <= trade.stop_loss:
-                    trade.end_date = datetime.strptime(curr_date, '%Y-%m-%d %H:%M:%S')
-                    trade_amount = (trade.stop_loss - trade.open_price) * trade.n_units
-                    reward += trade_amount
-                    day_fees += MarketCalculations.calculate_day_fees(trade)
-
-                    n_wins += 1 if trade_amount > 0 else 0
-                    n_losses += 1 if trade_amount < 0 else 0
-                    curr_win_streak = 0 if trade_amount < 0 else curr_win_streak + 1
-                    curr_loss_streak = 0 if trade_amount > 0 else curr_loss_streak + 1
-
-                    if curr_win_streak > win_streak:
-                        win_streak = curr_win_streak
-
-                    if curr_loss_streak > loss_streak:
-                        loss_streak = curr_loss_streak
-
-                    trade = None
-
-                    if aat_trainer is not None:
-                        aat_trainer.trade_finished(trade_amount + day_fees)
-
-                    continue
-
-                # Condition 2 - Trade is a buy and the take profit/stop gain is hit
-                if trade.trade_type == TradeType.BUY and curr_bid_high >= trade.stop_gain:
-                    trade.end_date = datetime.strptime(curr_date, '%Y-%m-%d %H:%M:%S')
-                    trade_amount = (trade.stop_gain - trade.open_price) * trade.n_units
-                    reward += trade_amount
-                    day_fees += MarketCalculations.calculate_day_fees(trade)
-
-                    n_wins += 1 if trade_amount > 0 else 0
-                    n_losses += 1 if trade_amount < 0 else 0
-                    curr_win_streak = 0 if trade_amount < 0 else curr_win_streak + 1
-                    curr_loss_streak = 0 if trade_amount > 0 else curr_loss_streak + 1
-
-                    if curr_win_streak > win_streak:
-                        win_streak = curr_win_streak
-
-                    if curr_loss_streak > loss_streak:
-                        loss_streak = curr_loss_streak
-
-                    trade = None
-
-                    if aat_trainer is not None:
-                        aat_trainer.trade_finished(trade_amount + day_fees)
-
-                    continue
-
-                # Condition 3 - trade is a sell and the stop loss is hit
-                if trade.trade_type == TradeType.SELL and curr_ask_high >= trade.stop_loss:
-                    trade.end_date = datetime.strptime(curr_date, '%Y-%m-%d %H:%M:%S')
-                    trade_amount = (trade.open_price - trade.stop_loss) * trade.n_units
-                    reward += trade_amount
-                    day_fees += MarketCalculations.calculate_day_fees(trade)
-
-                    n_wins += 1 if trade_amount > 0 else 0
-                    n_losses += 1 if trade_amount < 0 else 0
-                    curr_win_streak = 0 if trade_amount < 0 else curr_win_streak + 1
-                    curr_loss_streak = 0 if trade_amount > 0 else curr_loss_streak + 1
-
-                    if curr_win_streak > win_streak:
-                        win_streak = curr_win_streak
-
-                    if curr_loss_streak > loss_streak:
-                        loss_streak = curr_loss_streak
-
-                    trade = None
-
-                    if aat_trainer is not None:
-                        aat_trainer.trade_finished(trade_amount + day_fees)
-
-                    continue
-
-                # Condition 4 - Trade is a sell and the take profit/stop gain is hit
-                if trade.trade_type == TradeType.SELL and curr_ask_low <= trade.stop_gain:
-                    trade.end_date = datetime.strptime(curr_date, '%Y-%m-%d %H:%M:%S')
-                    trade_amount = (trade.open_price - trade.stop_gain) * trade.n_units
-                    reward += trade_amount
-                    day_fees += MarketCalculations.calculate_day_fees(trade)
-
-                    n_wins += 1 if trade_amount > 0 else 0
-                    n_losses += 1 if trade_amount < 0 else 0
-                    curr_win_streak = 0 if trade_amount < 0 else curr_win_streak + 1
-                    curr_loss_streak = 0 if trade_amount > 0 else curr_loss_streak + 1
-
-                    if curr_win_streak > win_streak:
-                        win_streak = curr_win_streak
-
-                    if curr_loss_streak > loss_streak:
-                        loss_streak = curr_loss_streak
-
-                    trade = None
-
-                    if aat_trainer is not None:
-                        aat_trainer.trade_finished(trade_amount + day_fees)
-
-                    continue
+        # Save AAT data if we are training
+        if aat_trainer is not None:
+            aat_trainer.save_data()
 
         # Return the simulation results once we've iterated through all the data
         avg_pips_risked = np.array(pips_risked).mean() if len(pips_risked) > 0 else np.nan
