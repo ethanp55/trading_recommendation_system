@@ -11,8 +11,8 @@ from sklearn.svm import SVC
 
 
 class SVMMarketTrainer(Learner):
-    def __init__(self, training_data_percentage: float, currency_pair: CurrencyPairs, date_range: str) -> None:
-        Learner.__init__(self, training_data_percentage, currency_pair, date_range)
+    def __init__(self, training_data_percentage: float, currency_pair: CurrencyPairs) -> None:
+        Learner.__init__(self, training_data_percentage, currency_pair)
 
     def trade_finished(self, net_profit: float, start_date: datetime, trade_type: TradeType) -> None:
         if net_profit <= 0:
@@ -25,6 +25,7 @@ class SVMMarketTrainer(Learner):
             self.sell_dates.append(start_date)
 
     def save_data(self) -> None:
+        print('Saving SVM data')
         df = deepcopy(self.market_data)
 
         buy_indices = [df.index[df['Date'] == curr_date] - 1 for curr_date in self.buy_dates]
@@ -53,7 +54,7 @@ class SVMMarketTrainer(Learner):
                 i = i[0]
                 seq = df[i, :]
 
-                if seq.shape == correct_shape and not seq.isnull().values.any():
+                if seq.shape == correct_shape and not np.isnan(seq).any():
                     buys.append([seq, 'buy'])
 
         for i in sell_indices:
@@ -61,7 +62,7 @@ class SVMMarketTrainer(Learner):
                 i = i[0]
                 seq = df[i, :]
 
-                if seq.shape == correct_shape and not seq.isnull().values.any():
+                if seq.shape == correct_shape and not np.isnan(seq).any():
                     sells.append([seq, 'sell'])
 
         for i in nones_indices:
@@ -69,7 +70,7 @@ class SVMMarketTrainer(Learner):
                 i = i[0]
                 seq = df[i, :]
 
-                if seq.shape == correct_shape and not seq.isnull().values.any():
+                if seq.shape == correct_shape and not np.isnan(seq).any():
                     no_actions.append([seq, 'none'])
 
         np.random.shuffle(no_actions)
@@ -83,7 +84,7 @@ class SVMMarketTrainer(Learner):
         training_data = no_actions + buys + sells
         np.random.shuffle(training_data)
 
-        data_dir = '/training_data'
+        data_dir = '../nn/training_data'
 
         file_path = f'{data_dir}/{self.currency_pair.value}_training_data_svm.pickle'
         scaler_file_path = f'{data_dir}/{self.currency_pair.value}_trained_svm_scaler.pickle'
@@ -95,9 +96,10 @@ class SVMMarketTrainer(Learner):
             pickle.dump(scaler, f)
 
     def train(self) -> None:
-        data_path = f'/training_data/{self.currency_pair.value}_training_data_svm.pickle'
+        print('Training SVM')
+        data_path = f'../nn/training_data/{self.currency_pair.value}_training_data_svm.pickle'
 
-        training_data = np.array(pickle.load(open(data_path, 'rb')))
+        training_data = pickle.load(open(data_path, 'rb'))
 
         x_train = []
         y_train = []
@@ -112,20 +114,20 @@ class SVMMarketTrainer(Learner):
         print(x_train.shape)
         print(y_train.shape)
 
-        param_grid = {'C': [0.01, 0.05, 0.1, 0.5, 1, 5, 10, 50],
-                      'gamma': [0.01, 0.05, 0.1, 0.5, 1, 5, 10, 50],
+        param_grid = {'C': [1, 5, 10, 50],
+                      'gamma': [1, 5, 10, 50],
                       'kernel': ['rbf', 'linear']}
 
         grid_search = GridSearchCV(SVC(), param_grid, cv=5, return_train_score=True)
         grid_search.fit(x_train, y_train)
 
-        print(f'Best SVM parameters:\n{grid_search.best_params_}')
+        print(f'Best SVM parameters:\n{grid_search.best_params_}\n{grid_search.best_score_}')
 
         model = grid_search.best_estimator_
 
-        data_dir = '/training_data'
+        data_dir = '../nn/training_data'
 
-        trained_svm_file = f'{data_dir}/{self.currency_pair.value}_trained_svm.pickle'
+        trained_svm_file = f'{self.currency_pair.value}_trained_svm.pickle'
 
         with open(f'{data_dir}/{trained_svm_file}', 'wb') as f:
             pickle.dump(model, f)

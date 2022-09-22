@@ -14,8 +14,8 @@ from tensorflow.keras.models import Sequential
 
 
 class RnnMarketTrainer(Learner):
-    def __init__(self, training_data_percentage: float, currency_pair: CurrencyPairs, date_range: str) -> None:
-        Learner.__init__(self, training_data_percentage, currency_pair, date_range)
+    def __init__(self, training_data_percentage: float, currency_pair: CurrencyPairs) -> None:
+        Learner.__init__(self, training_data_percentage, currency_pair)
 
     def trade_finished(self, net_profit: float, start_date: datetime, trade_type: TradeType) -> None:
         if net_profit <= 0:
@@ -58,7 +58,7 @@ class RnnMarketTrainer(Learner):
                 i = i[0]
                 seq = df[i - RNN_LOOKBACK + 1:i + 1, :]
 
-                if seq.shape == correct_shape and not seq.isnull().values.any():
+                if seq.shape == correct_shape and not np.isnan(seq).any():
                     buys.append([seq, np.array([0, 1, 0])])
 
         for i in sell_indices:
@@ -66,7 +66,7 @@ class RnnMarketTrainer(Learner):
                 i = i[0]
                 seq = df[i - RNN_LOOKBACK + 1:i + 1, :]
 
-                if seq.shape == correct_shape and not seq.isnull().values.any():
+                if seq.shape == correct_shape and not np.isnan(seq).any():
                     sells.append([seq, np.array([0, 0, 1])])
 
         for i in nones_indices:
@@ -74,7 +74,7 @@ class RnnMarketTrainer(Learner):
                 i = i[0]
                 seq = df[i - RNN_LOOKBACK + 1:i + 1, :]
 
-                if seq.shape == correct_shape and not seq.isnull().values.any():
+                if seq.shape == correct_shape and not np.isnan(seq).any():
                     no_actions.append([seq, np.array([1, 0, 0])])
 
         np.random.shuffle(no_actions)
@@ -88,7 +88,7 @@ class RnnMarketTrainer(Learner):
         training_data = no_actions + buys + sells
         np.random.shuffle(training_data)
 
-        data_dir = '/training_data'
+        data_dir = '../nn/training_data'
 
         file_path = f'{data_dir}/{self.currency_pair.value}_training_data_rnn.pickle'
         scaler_file_path = f'{data_dir}/{self.currency_pair.value}_trained_rnn_scaler.pickle'
@@ -100,7 +100,7 @@ class RnnMarketTrainer(Learner):
             pickle.dump(scaler, f)
 
     def train(self) -> None:
-        data_path = f'/training_data/{self.currency_pair.value}_training_data_rnn.pickle'
+        data_path = f'../nn/training_data/{self.currency_pair.value}_training_data_rnn.pickle'
 
         training_data = np.array(pickle.load(open(data_path, 'rb')))
 
@@ -166,11 +166,11 @@ class RnnMarketTrainer(Learner):
 
         model.add(Dense(n_actions, activation='softmax'))
 
-        n_epochs = 500
+        n_epochs = 100
         batch_size = 32
         patience_percentage = 0.2
 
-        path = f'/training_data/{self.currency_pair.value}_trained_rnn'
+        path = f'../nn/training_data/{self.currency_pair.value}_trained_rnn'
 
         early_stop = EarlyStopping(monitor='val_accuracy', verbose=1,
                                    patience=int(patience_percentage * n_epochs))

@@ -1,4 +1,5 @@
 from aat.aat_market_trainer import AatMarketTrainer
+from copy import deepcopy
 from pandas import DataFrame
 from market_proxy.trades import TradeType
 from nn.learner import Learner
@@ -10,13 +11,16 @@ from typing import Optional
 
 class MarketSimulator(object):
     @staticmethod
-    def run_simulation(strategy: Strategy, market_data: DataFrame, learner: Optional[Learner] = None,
-                       aat_trainer: Optional[AatMarketTrainer] = None) -> StrategyResults:
+    def run_simulation(strategy: Strategy, market_data: DataFrame, aat_trainer: Optional[AatMarketTrainer] = None,
+                       learner: Optional[Learner] = None) -> StrategyResults:
         print(f'Running simulation for strategy with description: {strategy.description}')
 
         reward, n_wins, n_losses, win_streak, loss_streak, curr_win_streak, curr_loss_streak, n_buys, n_sells, \
             day_fees = 0, 0, 0, 0, 0, 0, 0, 0, 0, 0  # Numerical results we keep track of
         pips_risked, trade = [], None
+
+        if learner is not None:
+            learner.market_data = deepcopy(market_data)
 
         for idx in range(strategy.starting_idx, len(market_data)):
             # If there is no open trade, check to see if we should place one
@@ -85,6 +89,10 @@ class MarketSimulator(object):
         # Save AAT data if we are training
         if aat_trainer is not None:
             aat_trainer.save_data()
+
+        # Save ML data if we are training
+        if learner is not None:
+            learner.save_data()
 
         # Return the simulation results once we've iterated through all the data
         avg_pips_risked = np.array(pips_risked).mean() if len(pips_risked) > 0 else np.nan

@@ -11,7 +11,7 @@ class Strategy:
     def __init__(self, description: str, starting_idx: int) -> None:
         self.description = description
         self.starting_idx = starting_idx
-        self.currency_pair = CurrencyPairs.AUD_USD
+        self.currency_pair = None
 
     def place_trade(self, curr_idx: int, market_data: DataFrame) -> Optional[Trade]:
         pass
