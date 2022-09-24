@@ -19,7 +19,7 @@ class SVMStrategy(Strategy):
                  spread_cutoff: float) -> None:
         description = f'SVM strategy with {risk_reward_ratio} risk/reward, {spread_cutoff} spread ' \
                       f'ratio, stop loss lookback of {lookback}, proba threshold of {proba_threshold}'
-        Strategy.__init__(self, description, starting_idx)
+        Strategy.__init__(self, 'svm_strategy', description, starting_idx)
 
         if not 0.0 <= proba_threshold <= 1.0:
             raise Exception(f'Probability threshold for predictions is not between 0 and 1: {proba_threshold}')
@@ -37,7 +37,7 @@ class SVMStrategy(Strategy):
         curr_slice = market_data.drop(['Bid_Open', 'Bid_High', 'Bid_Low', 'Bid_Close', 'Ask_Open', 'Ask_High',
                                        'Ask_Low', 'Ask_Close', 'Mid_Open', 'Mid_High', 'Mid_Low', 'Mid_Close',
                                        'Volume', 'Date'], axis=1, inplace=False)
-        curr_slice = curr_slice.iloc[curr_idx - RNN_LOOKBACK:curr_idx, :]
+        curr_slice = np.array(curr_slice.iloc[curr_idx - 1, :]).reshape(1, -1)
         curr_slice = self.scaler.transform(curr_slice)
 
         pred = self.model.predict_proba(curr_slice)[0]

@@ -1,5 +1,4 @@
 from aat.aat_market_trainer import AatMarketTrainer
-from datetime import datetime
 from pandas import DataFrame
 from market_proxy.currency_pairs import CurrencyPairs
 from market_proxy.data_retriever import DataRetriever
@@ -16,7 +15,7 @@ class StochMACDCrossStrategy(Strategy):
     def __init__(self, starting_idx: int, risk_reward_ratio: float, spread_cutoff: float, lookback: int):
         description = f'Stochastic Crossover w/MACD strategy with {risk_reward_ratio} risk/reward, {spread_cutoff} ' \
                       f'spread ratio, {lookback} lookback'
-        Strategy.__init__(self, description, starting_idx)
+        Strategy.__init__(self, 'stoch_macd_strategy', description, starting_idx)
         self.risk_reward_ratio = risk_reward_ratio
         self.spread_cutoff = spread_cutoff
         self.lookback = lookback
@@ -26,8 +25,8 @@ class StochMACDCrossStrategy(Strategy):
         slowk2, slowd2 = market_data.loc[market_data.index[curr_idx - 2], ['slowk_rsi', 'slowd_rsi']]
         slowk1, slowd1, ema200_1, ema100_1 = market_data.loc[market_data.index[curr_idx - 1], ['slowk_rsi', 'slowd_rsi', 'ema200', 'ema100']]
         stoch_vals = [slowk2, slowd2, slowk1, slowd1]
-        macd_vals = market_data.loc[market_data.index[curr_idx - self.lookback:curr_idx], ['macd']]
-        macdsignal_vals = market_data.loc[market_data.index[curr_idx - self.lookback:curr_idx], ['macdsignal']]
+        macd_vals = list(market_data.loc[market_data.index[curr_idx - self.lookback:curr_idx], 'macd'])
+        macdsignal_vals = list(market_data.loc[market_data.index[curr_idx - self.lookback:curr_idx], 'macdsignal'])
         curr_bid_open, curr_ask_open, curr_mid_open, curr_date = market_data.loc[market_data.index[curr_idx],
                                                                                  ['Bid_Open', 'Ask_Open', 'Mid_Open',
                                                                                   'Date']]
@@ -42,10 +41,10 @@ class StochMACDCrossStrategy(Strategy):
             macd1, macdsignal1 = macd_vals[j], macdsignal_vals[j]
 
             if macd2 < macdsignal2 and macd1 > macdsignal1:
-                macd_buy_cross, macd_sell_cross = True, False
+                macd_buy_cross = True
 
             elif macd2 > macdsignal2 and macd1 < macdsignal1:
-                macd_buy_cross, macd_sell_cross = False, True
+                macd_sell_cross = True
 
         buy_signal = slowk2 < slowd2 and slowk1 > slowd1 and max(stoch_vals + [20]) == 20 and macd_buy_cross
         sell_signal = slowk2 > slowd2 and slowk1 < slowd1 and min(stoch_vals + [80]) == 80 and macd_sell_cross

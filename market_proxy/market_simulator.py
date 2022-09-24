@@ -26,11 +26,6 @@ class MarketSimulator(object):
             # If there is no open trade, check to see if we should place one
             if trade is None:
                 trade = strategy.place_trade(idx, market_data)
-                trade_type = trade.trade_type if trade is not None else TradeType.NONE
-
-                # Train AAT
-                if aat_trainer is not None:
-                    aat_trainer.record_tuple(idx, market_data, trade_type)
 
                 # Update final result parameters
                 if trade is not None:
@@ -59,6 +54,10 @@ class MarketSimulator(object):
                                                                                           'Ask_High', 'Ask_Low',
                                                                                           'Mid_Open', 'Date']]
 
+                    # Train AAT
+                    if aat_trainer is not None:
+                        aat_trainer.record_tuple(j, market_data)
+
                     # Determine if trade should close out; if so, calculate the profit, day fees, etc.
                     trade.calculate_trade(curr_bid_low, curr_bid_high, curr_ask_low, curr_ask_high, curr_date)
 
@@ -81,6 +80,9 @@ class MarketSimulator(object):
 
                         if learner is not None:
                             learner.trade_finished(net_profit, trade.start_date, trade.trade_type)
+
+                        if aat_trainer is not None:
+                            aat_trainer.trade_finished(trade.net_profit)
 
                         trade = None
 

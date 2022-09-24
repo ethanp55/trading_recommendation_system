@@ -8,7 +8,8 @@ from typing import Optional
 
 
 class Strategy:
-    def __init__(self, description: str, starting_idx: int) -> None:
+    def __init__(self, name: str, description: str, starting_idx: int) -> None:
+        self.name = name
         self.description = description
         self.starting_idx = starting_idx
         self.currency_pair = None

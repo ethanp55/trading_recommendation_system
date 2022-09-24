@@ -16,7 +16,7 @@ class LearnerTrainingStrategy(Strategy):
                  lookback: int = 12):
         description = f'Learner training strategy with {risk_reward_ratio} risk/reward, {spread_cutoff} spread ' \
                       f'ratio, {lookback} lookback'
-        Strategy.__init__(self, description, starting_idx)
+        Strategy.__init__(self, 'learner_strategy', description, starting_idx)
         self.risk_reward_ratio = risk_reward_ratio
         self.spread_cutoff = spread_cutoff
         self.lookback = lookback

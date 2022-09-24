@@ -20,7 +20,7 @@ class CnnStrategy(Strategy):
                  spread_cutoff: float) -> None:
         description = f'CNN strategy with {risk_reward_ratio} risk/reward, {spread_cutoff} spread ' \
                       f'ratio, stop loss lookback of {lookback}, proba threshold of {proba_threshold}'
-        Strategy.__init__(self, description, starting_idx)
+        Strategy.__init__(self, 'cnn_strategy', description, starting_idx)
 
         if not 0.0 <= proba_threshold <= 1.0:
             raise Exception(f'Probability threshold for predictions is not between 0 and 1: {proba_threshold}')

@@ -118,7 +118,7 @@ class SVMMarketTrainer(Learner):
                       'gamma': [1, 5, 10, 50],
                       'kernel': ['rbf', 'linear']}
 
-        grid_search = GridSearchCV(SVC(), param_grid, cv=5, return_train_score=True)
+        grid_search = GridSearchCV(SVC(probability=True), param_grid, cv=5, return_train_score=True)
         grid_search.fit(x_train, y_train)
 
         print(f'Best SVM parameters:\n{grid_search.best_params_}\n{grid_search.best_score_}')

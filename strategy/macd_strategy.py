@@ -16,7 +16,7 @@ class MACDStrategy(Strategy):
     def __init__(self, starting_idx: int, risk_reward_ratio: float, spread_cutoff: float, lookback: int):
         description = f'MACD strategy with {risk_reward_ratio} risk/reward, {spread_cutoff} spread ratio, ' \
                       f'{lookback} lookback'
-        Strategy.__init__(self, description, starting_idx)
+        Strategy.__init__(self, 'macd_strategy', description, starting_idx)
         self.risk_reward_ratio = risk_reward_ratio
         self.spread_cutoff = spread_cutoff
         self.lookback = lookback

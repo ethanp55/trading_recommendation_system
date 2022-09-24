@@ -6,6 +6,7 @@ from market_proxy.data_retriever import DataRetriever
 from market_proxy.market_calculations import MarketCalculations
 from market_proxy.market_simulator import MarketSimulator
 from market_proxy.trades import Trade, TradeType
+from nn.learner import Learner
 from typing import Optional
 from strategy.strategy_class import Strategy
 from strategy.strategy_results import StrategyResults
@@ -13,10 +14,10 @@ from strategy.strategy_results import StrategyResults
 
 class DirectionalBarsStrategy(Strategy):
     def __init__(self, starting_idx: int, risk_reward_ratio: float, spread_cutoff: float,
-                 each_bar: bool, n_bars: int, pip_movement: int, use_pullback: bool):
+                 each_bar: bool = False, n_bars: int = 3, pip_movement: int = 20, use_pullback: bool = True):
         description = f'Direcitonal bar strategy with {risk_reward_ratio} risk/reward, {spread_cutoff} spread ratio, ' \
                       f'{each_bar} each bar, {n_bars} bars, {pip_movement} pips, {use_pullback} pullback'
-        Strategy.__init__(self, description, starting_idx)
+        Strategy.__init__(self, 'bars_strategy', description, starting_idx)
         self.risk_reward_ratio = risk_reward_ratio
         self.spread_cutoff = spread_cutoff
         self.each_bar = each_bar
@@ -32,7 +33,6 @@ class DirectionalBarsStrategy(Strategy):
         curr_bid_open, curr_bid_high, curr_bid_low, curr_ask_open, curr_ask_high, curr_ask_low, curr_mid_open, \
             curr_date = market_data.loc[market_data.index[curr_idx], ['Bid_Open', 'Bid_High', 'Bid_Low', 'Ask_Open',
                                                                       'Ask_High', 'Ask_Low', 'Mid_Open', 'Date']]
-        filtered_date = datetime.strptime(curr_date, '%Y-%m-%d %H:%M:%S')
         spread = abs(curr_ask_open - curr_bid_open)
 
         mid_opens = list(
@@ -86,7 +86,7 @@ class DirectionalBarsStrategy(Strategy):
                                                              curr_mid_open, self.currency_pair)
 
                     trade = Trade(trade_type, open_price, stop_loss, stop_gain, n_units, n_units, curr_pips_to_risk,
-                                  filtered_date, None)
+                                  curr_date, None)
 
         elif sell_signal:
             open_price = float(curr_bid_open)
@@ -102,13 +102,13 @@ class DirectionalBarsStrategy(Strategy):
                                                              curr_mid_open, self.currency_pair)
 
                     trade = Trade(trade_type, open_price, stop_loss, stop_gain, n_units, n_units, curr_pips_to_risk,
-                                  filtered_date, None)
+                                  curr_date, None)
 
         return trade
 
-    def run_strategy(self, currency_pair: CurrencyPairs,
-                     aat_trainer: Optional[AatMarketTrainer] = None) -> StrategyResults:
+    def run_strategy(self, currency_pair: CurrencyPairs, aat_trainer: Optional[AatMarketTrainer] = None,
+                     learner: Optional[Learner] = None, date_range: str = '2018-2021') -> StrategyResults:
         self.currency_pair = currency_pair
-        market_data = DataRetriever.get_data_for_pair(currency_pair)
+        market_data = DataRetriever.get_data_for_pair(currency_pair, date_range)
 
-        return MarketSimulator.run_simulation(self, market_data, aat_trainer)
+        return MarketSimulator.run_simulation(self, market_data, aat_trainer, learner)

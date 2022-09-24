@@ -15,7 +15,7 @@ class ScalpStrategy(Strategy):
     def __init__(self, starting_idx: int, risk_reward_ratio: float, spread_cutoff: float, lookback: int):
         description = f'Scalp strategy with {risk_reward_ratio} risk/reward, {spread_cutoff} spread ratio, ' \
                       f'{lookback} lookback'
-        Strategy.__init__(self, description, starting_idx)
+        Strategy.__init__(self, 'scalp_strategy', description, starting_idx)
         self.risk_reward_ratio = risk_reward_ratio
         self.spread_cutoff = spread_cutoff
         self.lookback = lookback
@@ -74,6 +74,6 @@ class ScalpStrategy(Strategy):
     def run_strategy(self, currency_pair: CurrencyPairs, aat_trainer: Optional[AatMarketTrainer] = None,
                      learner: Optional[Learner] = None, date_range: str = '2018-2021') -> StrategyResults:
         self.currency_pair = currency_pair
-        market_data = DataRetriever.get_data_for_pair(currency_pair)
+        market_data = DataRetriever.get_data_for_pair(currency_pair, date_range)
 
-        return MarketSimulator.run_simulation(self, market_data, aat_trainer)
+        return MarketSimulator.run_simulation(self, market_data, aat_trainer, learner)

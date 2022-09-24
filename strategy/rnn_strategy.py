@@ -20,7 +20,7 @@ class RnnStrategy(Strategy):
                  spread_cutoff: float) -> None:
         description = f'RNN strategy with {risk_reward_ratio} risk/reward, {spread_cutoff} spread ' \
                       f'ratio, stop loss lookback of {lookback}, proba threshold of {proba_threshold}'
-        Strategy.__init__(self, description, starting_idx)
+        Strategy.__init__(self, 'rnn_strategy', description, starting_idx)
 
         if not 0.0 <= proba_threshold <= 1.0:
             raise Exception(f'Probability threshold for predictions is not between 0 and 1: {proba_threshold}')
@@ -39,7 +39,8 @@ class RnnStrategy(Strategy):
                                        'Ask_Low', 'Ask_Close', 'Mid_Open', 'Mid_High', 'Mid_Low', 'Mid_Close',
                                        'Volume', 'Date'], axis=1, inplace=False)
         curr_slice = curr_slice.iloc[curr_idx - RNN_LOOKBACK:curr_idx, :]
-        curr_slice = self.scaler.transform(curr_slice)
+        n_features = curr_slice.shape[-1]
+        curr_slice = self.scaler.transform(curr_slice).reshape(-1, RNN_LOOKBACK, n_features)
 
         pred = self.model(curr_slice)
         argmax = np.argmax(pred)
