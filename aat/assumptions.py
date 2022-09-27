@@ -1,4 +1,6 @@
+from collections import deque
 from dataclasses import dataclass
+import pandas as pd
 from typing import List
 from utils.utils import USE_BOOL_VALS
 
@@ -97,4 +99,26 @@ class Assumptions:
         return ti_names + other_names
 
 
+class AssumptionsCollection:
+    def __init__(self, lookback: int) -> None:
+        self.collections = []
+        self.lookback = lookback
 
+    def update(self, new_assumptions: Assumptions) -> None:
+        tup = new_assumptions.create_aat_bool_tuple() if USE_BOOL_VALS else new_assumptions.create_aat_tuple()
+        tup = tup[:-1]
+
+        for i, val in enumerate(tup):
+            if i >= len(self.collections):
+                self.collections.append(deque(maxlen=self.lookback))
+
+            self.collections[i].append(val)
+
+    def generate_moving_averages(self) -> List[float]:
+        moving_averages = []
+
+        for collection in self.collections:
+            moving_average = list(pd.Series.ewm(pd.Series(collection), span=self.lookback).mean())[-1]
+            moving_averages.append(moving_average)
+
+        return moving_averages

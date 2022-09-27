@@ -10,7 +10,7 @@ from strategy.rsi_crossover_strategy import RSICrossStrategy
 from strategy.scalp_strategy import ScalpStrategy
 from strategy.stoch_macd_crossover_strategy import StochMACDCrossStrategy
 from strategy.svm_strategy import SVMStrategy
-from utils.utils import AAT_TRAINING_YEARS, QUICK_TEST_YEARS, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF
+from utils.utils import AAT_TRAINING_YEARS, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF
 
 
 # strategies = [CnnStrategy(CNN_LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF),
@@ -24,12 +24,12 @@ from utils.utils import AAT_TRAINING_YEARS, QUICK_TEST_YEARS, RISK_REWARD_RATIO,
 #               StochMACDCrossStrategy(LOOKBACK, RISK_REWARD_RATIO, SPREAD_CUTOFF, LOOKBACK),
 #               SVMStrategy(LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF)]
 
-strategies = [SVMStrategy(LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF)]
+strategies = [RnnStrategy(RNN_LOOKBACK, RISK_REWARD_RATIO, 0.5, LOOKBACK, SPREAD_CUTOFF)]
 
-all_pairs = CurrencyPairs.usd_base_pairs()
+all_pairs = CurrencyPairs.all_pairs()
 
 for strategy in strategies:
     for currency_pair in all_pairs:
         trainer = AatKnnMarketTrainer(currency_pair, strategy.risk_reward_ratio, strategy.name)
-        results = strategy.run_strategy(currency_pair, trainer, date_range=QUICK_TEST_YEARS)
+        results = strategy.run_strategy(currency_pair, trainer, date_range=AAT_TRAINING_YEARS)
         print(f'Results for {currency_pair.value}:\n{results}')

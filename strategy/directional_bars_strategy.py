@@ -1,5 +1,4 @@
 from aat.aat_market_trainer import AatMarketTrainer
-from datetime import datetime
 from pandas import DataFrame
 from market_proxy.currency_pairs import CurrencyPairs
 from market_proxy.data_retriever import DataRetriever
