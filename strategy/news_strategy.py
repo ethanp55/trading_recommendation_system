@@ -84,10 +84,14 @@ class NewsStrategy(Strategy):
 
         return trade
 
+    def load_models(self) -> None:
+        self.news_data = DataRetriever.get_news_data(self.currency_pair)
+
     def run_strategy(self, currency_pair: CurrencyPairs, aat_trainer: Optional[AatMarketTrainer] = None,
                      learner: Optional[Learner] = None, date_range: str = '2018-2021') -> StrategyResults:
         self.currency_pair = currency_pair
-        self.news_data = DataRetriever.get_news_data(currency_pair)
+        self.load_models()
+
         market_data = DataRetriever.get_data_for_pair(currency_pair, date_range)
 
         return MarketSimulator.run_simulation(self, market_data, aat_trainer, learner)

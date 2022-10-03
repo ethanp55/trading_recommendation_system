@@ -1,0 +1,12 @@
+,N_Trades,Strategy
+0,487,CNN
+1,425,RNN
+2,61,Bars
+3,110,EMA
+4,190,MACD
+5,369,News
+6,357,RSI
+7,45,Scalp
+8,16,Stoch MACD
+9,591,SVM
+10,918,AlegAATr

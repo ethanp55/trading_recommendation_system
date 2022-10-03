@@ -2,6 +2,7 @@ from market_proxy.currency_pairs import CurrencyPairs
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from strategy.alegaatr import Alegaatr
 from strategy.cnn_strategy import CnnStrategy, CNN_LOOKBACK
 from strategy.directional_bars_strategy import DirectionalBarsStrategy
 from strategy.ema_crossover_strategy import EMACrossStrategy
@@ -12,8 +13,11 @@ from strategy.rsi_crossover_strategy import RSICrossStrategy
 from strategy.scalp_strategy import ScalpStrategy
 from strategy.stoch_macd_crossover_strategy import StochMACDCrossStrategy
 from strategy.svm_strategy import SVMStrategy
-from utils.utils import AAT_TESTING_YEARS, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF
+from utils.utils import AAT_TESTING_YEARS, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF, QUICK_TEST_YEARS
+import warnings
 
+
+warnings.filterwarnings('ignore')  # sklearn sometimes complains, especially about using scalers
 
 strategies = [CnnStrategy(CNN_LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF),
               RnnStrategy(RNN_LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF),
@@ -26,11 +30,16 @@ strategies = [CnnStrategy(CNN_LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBAC
               StochMACDCrossStrategy(LOOKBACK, RISK_REWARD_RATIO, SPREAD_CUTOFF, LOOKBACK),
               SVMStrategy(LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF)]
 
+starting_idx = max([strat.starting_idx for strat in strategies])
+alegaatr = Alegaatr(starting_idx, strategies)
+strategies.append(alegaatr)
+
 all_pairs = CurrencyPairs.all_pairs()
-reward_results, day_fee_results, profit_results, n_trades_results, win_rate_results, names = {}, {}, {}, {}, {}, []
+# all_pairs = [all_pairs[1]]
+reward_results, day_fee_results, profit_results, n_trades_results, win_rate_results = {}, {}, {}, {}, {}
+names = ['CNN', 'RNN', 'Bars', 'EMA', 'MACD', 'News', 'RSI', 'Scalp', 'Stoch MACD', 'SVM', 'AlegAATr']
 
 for strategy in strategies:
-    names.append(strategy.name)
 
     for currency_pair in all_pairs:
         results = strategy.run_strategy(currency_pair, date_range=AAT_TESTING_YEARS)
@@ -67,9 +76,10 @@ for currency_pair in all_pairs:
     wls_df.to_csv(f'./results/{key}_wins_losses.csv')
 
     # Generate plots
+    COLORS = ['green', 'red', 'blue', 'orange', 'purple', 'teal', 'yellow', 'cyan', 'black', 'brown', 'gray']
+
     x_pos = np.arange(len(names))
-    plt.bar(x_pos, rewards, align='center', alpha=0.5,
-            color=['green', 'red', 'blue', 'orange', 'purple', 'teal', 'yellow', 'cyan', 'black', 'brown'])
+    plt.bar(x_pos, rewards, align='center', alpha=0.5, color=COLORS)
     plt.xticks(x_pos, names, fontsize=6)
     plt.xlabel('Strategy')
     plt.ylabel('Reward ($)')
@@ -79,8 +89,7 @@ for currency_pair in all_pairs:
 
     x_pos = np.arange(len(names))
     day_fees_converted = [abs(fee) for fee in day_fees]
-    plt.bar(x_pos, day_fees_converted, align='center', alpha=0.5,
-            color=['green', 'red', 'blue', 'orange', 'purple', 'teal', 'yellow', 'cyan', 'black', 'brown'])
+    plt.bar(x_pos, day_fees_converted, align='center', alpha=0.5, color=COLORS)
     plt.xticks(x_pos, names, fontsize=6)
     plt.xlabel('Strategy')
     plt.ylabel('Day Fees ($)')
@@ -89,8 +98,7 @@ for currency_pair in all_pairs:
     plt.clf()
 
     x_pos = np.arange(len(names))
-    plt.bar(x_pos, profits, align='center', alpha=0.5,
-            color=['green', 'red', 'blue', 'orange', 'purple', 'teal', 'yellow', 'cyan', 'black', 'brown'])
+    plt.bar(x_pos, profits, align='center', alpha=0.5, color=COLORS)
     plt.xticks(x_pos, names, fontsize=6)
     plt.xlabel('Strategy')
     plt.ylabel('Net Profit ($)')
@@ -99,8 +107,7 @@ for currency_pair in all_pairs:
     plt.clf()
 
     x_pos = np.arange(len(names))
-    plt.bar(x_pos, n_trades, align='center', alpha=0.5,
-            color=['green', 'red', 'blue', 'orange', 'purple', 'teal', 'yellow', 'cyan', 'black', 'brown'])
+    plt.bar(x_pos, n_trades, align='center', alpha=0.5, color=COLORS)
     plt.xticks(x_pos, names, fontsize=6)
     plt.xlabel('Strategy')
     plt.ylabel('# Trades')
@@ -109,8 +116,7 @@ for currency_pair in all_pairs:
     plt.clf()
 
     x_pos = np.arange(len(names))
-    plt.bar(x_pos, win_rates, align='center', alpha=0.5,
-            color=['green', 'red', 'blue', 'orange', 'purple', 'teal', 'yellow', 'cyan', 'black', 'brown'])
+    plt.bar(x_pos, win_rates, align='center', alpha=0.5, color=COLORS)
     plt.xticks(x_pos, names, fontsize=6)
     plt.xlabel('Strategy')
     plt.ylabel('Win Rate')

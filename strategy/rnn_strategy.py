@@ -99,12 +99,16 @@ class RnnStrategy(Strategy):
 
         return trade
 
-    def run_strategy(self, currency_pair: CurrencyPairs, aat_trainer: Optional[AatMarketTrainer] = None,
-                     learner: Optional[Learner] = None, date_range: str = '2018-2021') -> StrategyResults:
-        self.currency_pair = currency_pair
+    def load_models(self) -> None:
         self.model = load_model(f'../nn/training_data/{self.currency_pair.value}_trained_rnn')
         self.scaler = pickle.load(open(f'../nn/training_data/{self.currency_pair.value}_trained_rnn_scaler.pickle',
                                        'rb'))
+
+    def run_strategy(self, currency_pair: CurrencyPairs, aat_trainer: Optional[AatMarketTrainer] = None,
+                     learner: Optional[Learner] = None, date_range: str = '2018-2021') -> StrategyResults:
+        self.currency_pair = currency_pair
+        self.load_models()
+
         market_data = DataRetriever.get_data_for_pair(currency_pair, date_range)
 
         return MarketSimulator.run_simulation(self, market_data, aat_trainer, learner)

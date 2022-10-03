@@ -7,6 +7,7 @@ import numpy as np
 from strategy.strategy_class import Strategy
 from strategy.strategy_results import StrategyResults
 from typing import Optional
+from utils.utils import USE_EARLY_STOPPING
 
 
 class MarketSimulator(object):
@@ -78,6 +79,8 @@ class MarketSimulator(object):
                         if curr_loss_streak > loss_streak:
                             loss_streak = curr_loss_streak
 
+                        strategy.trade_finished(trade.net_profit)
+
                         if learner is not None:
                             learner.trade_finished(net_profit, trade.start_date, trade.trade_type)
 
@@ -87,6 +90,26 @@ class MarketSimulator(object):
                         trade = None
 
                         break
+
+                    # The strategy might want to stop the trade early if it hasn't closed out yet
+                    if USE_EARLY_STOPPING:
+                        close_early, rew, fees = strategy.stop_early(j, market_data, trade)
+
+                        if close_early:
+                            reward += rew
+                            day_fees += fees
+                            net_profit = rew + fees
+
+                            n_wins += 1 if net_profit > 0 else 0
+                            n_losses += 1 if net_profit < 0 else 0
+                            curr_win_streak = 0 if net_profit < 0 else curr_win_streak + 1
+                            curr_loss_streak = 0 if net_profit > 0 else curr_loss_streak + 1
+
+                            strategy.trade_finished(net_profit)
+
+                            trade = None
+
+                            break
 
         # Save AAT data if we are training
         if aat_trainer is not None:
