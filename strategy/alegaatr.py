@@ -11,7 +11,6 @@ from market_proxy.trades import Trade, TradeCalculations, TradeType
 from nn.learner import Learner
 import numpy as np
 import pickle
-import random
 from strategy.strategy_class import Strategy
 from strategy.strategy_results import StrategyResults
 from typing import List, Optional, Tuple
@@ -126,8 +125,6 @@ class Alegaatr(Strategy):
                                       slowd_rsi, vo, willy, willy_ema)
 
         new_assumptions = Assumptions(ti_vals, bid_open, ask_open, key_level, 0)
-        # self.assumptions_collection.update(new_assumptions)
-        # tup = self.assumptions_collection.generate_moving_averages()
         tup = new_assumptions.create_aat_tuple()[:-1]
 
         predictions = {}
@@ -162,19 +159,6 @@ class Alegaatr(Strategy):
 
             else:
                 predictions[expert_name] = total_pred
-
-        # sorted_preds = list(predictions.items())
-        # sorted_preds.sort(key=lambda x: x[1])
-        # rewards = [pred[1] for pred in sorted_preds[:self.at_least_n_positive]]
-        #
-        # if not all([reward > 0 for reward in rewards]):
-        #     return None
-        #
-        # names = [pred[0] for pred in sorted_preds[:self.at_least_n_positive]]
-        # reward_sum = sum(rewards)
-        # weights = [reward / reward_sum for reward in rewards]
-        #
-        # expert_key = random.choices(names, weights=weights, k=1)[0]
 
         expert_key = max(predictions, key=lambda key: predictions[key])
         sorted_preds = sorted(predictions.values(), reverse=True)

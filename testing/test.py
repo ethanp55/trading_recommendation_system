@@ -13,6 +13,7 @@ from strategy.rsi_crossover_strategy import RSICrossStrategy
 from strategy.scalp_strategy import ScalpStrategy
 from strategy.stoch_macd_crossover_strategy import StochMACDCrossStrategy
 from strategy.svm_strategy import SVMStrategy
+from strategy.ucb import UCB
 from utils.utils import AAT_TESTING_YEARS, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF, QUICK_TEST_YEARS
 import warnings
 
@@ -31,16 +32,15 @@ strategies = [CnnStrategy(CNN_LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBAC
               SVMStrategy(LOOKBACK, RISK_REWARD_RATIO, PROBA_CUTOFF, LOOKBACK, SPREAD_CUTOFF)]
 
 starting_idx = max([strat.starting_idx for strat in strategies])
+ucb = UCB(starting_idx, strategies)
 alegaatr = Alegaatr(starting_idx, strategies)
-strategies.append(alegaatr)
+strategies.extend([ucb, alegaatr])
 
 all_pairs = CurrencyPairs.all_pairs()
-# all_pairs = [all_pairs[1]]
 reward_results, day_fee_results, profit_results, n_trades_results, win_rate_results = {}, {}, {}, {}, {}
-names = ['CNN', 'RNN', 'Bars', 'EMA', 'MACD', 'News', 'RSI', 'Scalp', 'Stoch MACD', 'SVM', 'AlegAATr']
+names = ['CNN', 'RNN', 'Bars', 'EMA', 'MACD', 'News', 'RSI', 'Scalp', 'Stoch MACD', 'SVM', 'UCB', 'AlegAATr']
 
 for strategy in strategies:
-
     for currency_pair in all_pairs:
         results = strategy.run_strategy(currency_pair, date_range=AAT_TESTING_YEARS)
         print(f'Results for {currency_pair.value}:\n{results}')
@@ -76,7 +76,7 @@ for currency_pair in all_pairs:
     wls_df.to_csv(f'./results/{key}_wins_losses.csv')
 
     # Generate plots
-    COLORS = ['green', 'red', 'blue', 'orange', 'purple', 'teal', 'yellow', 'cyan', 'black', 'brown', 'gray']
+    COLORS = ['green', 'red', 'blue', 'orange', 'purple', 'pink', 'teal', 'yellow', 'cyan', 'black', 'brown', 'gray']
 
     x_pos = np.arange(len(names))
     plt.bar(x_pos, rewards, align='center', alpha=0.5, color=COLORS)
